@@ -6,7 +6,6 @@ import (
 	"sync"
 )
 
-// Dispatcher yapısını dışa açık hale getir
 type Dispatcher struct {
 	inCh          chan Request
 	workerManager *WorkerManager
@@ -14,7 +13,6 @@ type Dispatcher struct {
 	reqHandler    map[int]RequestHandler
 }
 
-// NewDispatcher fonksiyonunun dönüş tipini *Dispatcher olarak değiştir
 func NewDispatcher(
 	bufferSize int,
 	wg *sync.WaitGroup,
@@ -59,24 +57,24 @@ func (d *Dispatcher) MakeRequest(r Request) {
 func (d *Dispatcher) Stop(ctx context.Context) {
 	fmt.Println("\nGraceful shutdown initiated")
 
-	// Önce yeni isteklerin alınmasını durdur
+	// First, stop receiving new requests
 	close(d.inCh)
 
-	// Bekleyen isteklerin sayısını kontrol et
+	// Check the number of pending requests
 	pendingRequests := len(d.inCh)
 	fmt.Printf("Pending requests: %d\n", pendingRequests)
 
-	// Tüm işçileri durdur
+	// Stop all workers
 	d.workerManager.StopAllWorkers()
 
-	// İşçilerin tamamlanmasını bekle
+	// Wait for all workers to finish
 	done := make(chan struct{})
 	go func() {
 		d.workerManager.WaitForAllWorkers()
 		close(done)
 	}()
 
-	// Timeout veya tamamlanma için bekle
+	// Wait for completion or timeout
 	select {
 	case <-done:
 		fmt.Println("All workers stopped gracefully")
@@ -84,11 +82,11 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 		fmt.Println("Timeout reached, some requests may not have been processed")
 	}
 
-	// Kalan istekleri raporla
+	// Report remaining requests
 	remainingRequests := len(d.inCh)
 	fmt.Printf("Unprocessed requests: %d\n", remainingRequests)
 
-	// İsteğe bağlı: Kalan istekleri bir log dosyasına veya başka bir sisteme kaydet
+	// Optional: Log remaining requests to a file or another system
 	if remainingRequests > 0 {
 		d.logRemainingRequests()
 	}
@@ -99,6 +97,6 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 func (d *Dispatcher) logRemainingRequests() {
 	for req := range d.inCh {
 		fmt.Printf("Unprocessed request: %v\n", req)
-		// Burada istekleri bir dosyaya veya veritabanına kaydedebilirsiniz
+		// You can log remaining requests to a file or another system here
 	}
 }

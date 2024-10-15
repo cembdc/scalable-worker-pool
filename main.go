@@ -40,7 +40,7 @@ func setMaxProcs() {
 func createRequestHandler() map[int]wp.RequestHandler {
 	return map[int]wp.RequestHandler{
 		1: func(data interface{}) error {
-			// İstek işleme mantığı
+
 			return nil
 		},
 	}
@@ -61,7 +61,6 @@ func sendRequests(dispatcher wp.WorkerPoolManager, requestCount int) {
 			Handler: func(result interface{}) error { return nil },
 			Type:    1,
 			Timeout: 5 * time.Second,
-			// İstek işleme mantığı
 		}
 		dispatcher.MakeRequest(req)
 	}
