@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"runtime"
 	wp "scalable-worker-pool/workerpool"
+
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	// SetLogger()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -28,13 +33,17 @@ func main() {
 
 	sendRequests(dispatcher, requests)
 
+	// done := make(chan bool)
+	// <-done
+	// time.Sleep(5 * time.Second)
 	gracefulShutdown(dispatcher, ctx)
 }
 
 func setMaxProcs() {
 	numCPU := runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPU)
-	fmt.Printf("Running with %d CPUs\n", numCPU)
+
+	log.Info().Msgf("Running with %d CPUs", numCPU)
 }
 
 func createRequestHandler() map[int]wp.RequestHandler {
@@ -48,7 +57,7 @@ func createRequestHandler() map[int]wp.RequestHandler {
 
 func startWorkers(dispatcher wp.WorkerPoolManager, wg *sync.WaitGroup, reqHandler map[int]wp.RequestHandler, minWorkers int) {
 	for i := 0; i < minWorkers; i++ {
-		fmt.Printf("Starting worker with id %d\n", i)
+		log.Info().Msgf("Starting worker with id %d", i)
 		w := wp.NewWorker(i, wg, reqHandler)
 		dispatcher.AddWorker(w)
 	}
@@ -57,7 +66,7 @@ func startWorkers(dispatcher wp.WorkerPoolManager, wg *sync.WaitGroup, reqHandle
 func sendRequests(dispatcher wp.WorkerPoolManager, requestCount int) {
 	for i := 0; i < requestCount; i++ {
 		req := wp.Request{
-			Data:    fmt.Sprintf("(Msg_id: %d) -> Hello", i),
+			Data:    fmt.Sprintf("Hello MsgId: %d", i),
 			Handler: func(result interface{}) error { return nil },
 			Type:    1,
 			Timeout: 5 * time.Second,
@@ -71,5 +80,5 @@ func gracefulShutdown(dispatcher wp.WorkerPoolManager, ctx context.Context) {
 	defer stopCancel()
 
 	dispatcher.Stop(stopCtx)
-	fmt.Println("Exiting main!")
+	log.Info().Msg("Exiting main!")
 }

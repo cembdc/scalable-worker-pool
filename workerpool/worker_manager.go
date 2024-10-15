@@ -1,8 +1,18 @@
 package workerpool
 
 import (
+	"context"
 	"sync"
 )
+
+// Dispatcher is an interface for managing the worker pool.
+type WorkerPoolManager interface {
+	AddWorker(w *Worker)
+	RemoveWorker(minWorkers int)
+	ScaleWorkers(ctx context.Context, minWorkers, maxWorkers, loadThreshold int)
+	MakeRequest(Request)
+	Stop(ctx context.Context)
+}
 
 type WorkerManager struct {
 	workers     map[int]*Worker

@@ -2,16 +2,30 @@ package workerpool
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
+
+// WorkerLauncher is an interface for launching workers.
+type WorkerLauncher interface {
+	LaunchWorker(in chan Request, stopCh chan struct{})
+}
 
 // Worker represents a worker that processes requests.
 type Worker struct {
 	Id         int
 	Wg         *sync.WaitGroup
 	ReqHandler map[int]RequestHandler
+}
+
+func NewWorker(id int, wg *sync.WaitGroup, reqHandler map[int]RequestHandler) *Worker {
+	return &Worker{
+		Id:         id,
+		Wg:         wg,
+		ReqHandler: reqHandler,
+	}
 }
 
 // LaunchWorker launches the worker to process incoming requests.
@@ -27,13 +41,13 @@ func (w *Worker) LaunchWorker(in chan Request, stopCh chan struct{}) {
 					// If the channel is closed, stop processing and return
 					// if we skip close channel check then after closing channel,
 					// worker keep reading empty values from closed channel.
-					fmt.Println("Stopping worker:", w.Id)
+					log.Info().Msgf("Stopping worker %d", w.Id)
 					return
 				}
 				w.processRequest(msg)
 				time.Sleep(1 * time.Microsecond) // Small delay to prevent tight loop
 			case <-stopCh:
-				fmt.Println("Stopping worker:", w.Id)
+				log.Info().Msgf("Stopping worker %d", w.Id)
 				return
 			}
 		}
@@ -42,14 +56,14 @@ func (w *Worker) LaunchWorker(in chan Request, stopCh chan struct{}) {
 
 // processRequest processes a single request.
 func (w *Worker) processRequest(msg Request) {
-	fmt.Printf("Worker %d processing request: %v\n", w.Id, msg)
+	log.Info().Msgf("Worker %d processing request: %v", w.Id, msg)
 	var handler RequestHandler
 	var ok bool
 	if handler, ok = w.ReqHandler[msg.Type]; !ok {
-		fmt.Println("Handler not implemented: workerID:", w.Id)
+		log.Info().Msgf("Handler not implemented: workerID: %d", w.Id)
 	} else {
 		if msg.Timeout == 0 {
-			msg.Timeout = time.Duration(10 * time.Millisecond) // Default timeout
+			msg.Timeout = time.Duration(DefaultWorkerTimeout)
 		}
 		for attempt := 0; attempt <= msg.MaxRetries; attempt++ {
 			var err error
@@ -67,20 +81,12 @@ func (w *Worker) processRequest(msg Request) {
 				if err == nil {
 					return // Successfully processed
 				}
-				fmt.Printf("Worker %d: Error processing request: %v\n", w.Id, err)
+				log.Error().Msgf("Worker %d: Error processing request: %v", w.Id, err)
 			case <-ctx.Done():
-				fmt.Printf("Worker %d: Timeout processing request: %v\n", w.Id, msg.Data)
+				log.Info().Msgf("Worker %d: Timeout processing request: %v", w.Id, msg.Data)
 			}
-			fmt.Printf("Worker %d: Retry %d for request %v\n", w.Id, attempt, msg.Data)
+			log.Info().Msgf("Worker %d: Retry %d for request %v", w.Id, attempt, msg.Data)
 		}
-		fmt.Printf("Worker %d: Failed to process request %v after %d retries\n", w.Id, msg.Data, msg.MaxRetries)
-	}
-}
-
-func NewWorker(id int, wg *sync.WaitGroup, reqHandler map[int]RequestHandler) *Worker {
-	return &Worker{
-		Id:         id,
-		Wg:         wg,
-		ReqHandler: reqHandler,
+		log.Error().Msgf("Worker %d: Failed to process request %v after %d retries", w.Id, msg.Data, msg.MaxRetries)
 	}
 }

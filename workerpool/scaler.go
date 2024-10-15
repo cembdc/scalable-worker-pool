@@ -2,8 +2,9 @@ package workerpool
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Scaler struct {
@@ -31,7 +32,7 @@ func (s *Scaler) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Scaler: Context cancelled, stopping scaling")
+			log.Info().Msg("Scaler: Context cancelled, stopping scaling")
 			return
 		case <-ticker.C:
 			s.scale()
@@ -44,7 +45,7 @@ func (s *Scaler) scale() {
 	currentWorkers := s.workerManager.WorkerCount()
 
 	if load > s.loadThreshold && currentWorkers < s.maxWorkers {
-		fmt.Println("Scaling Up")
+		log.Info().Msg("Scaling Up")
 		newWorker := &Worker{
 			Wg:         s.workerManager.wg,
 			Id:         currentWorkers,
@@ -52,7 +53,7 @@ func (s *Scaler) scale() {
 		}
 		s.workerManager.AddWorker(newWorker)
 	} else if float64(load) < float64(LoadThresholdScaleDownRatio)*float64(s.loadThreshold) && currentWorkers > s.minWorkers {
-		fmt.Println("Scaling Down")
+		log.Info().Msg("Scaling Down")
 		s.workerManager.RemoveWorker()
 	}
 }

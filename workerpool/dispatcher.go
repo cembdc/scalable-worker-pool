@@ -2,8 +2,9 @@ package workerpool
 
 import (
 	"context"
-	"fmt"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Dispatcher struct {
@@ -50,19 +51,19 @@ func (d *Dispatcher) MakeRequest(r Request) {
 	select {
 	case d.inCh <- r:
 	default:
-		fmt.Println("Request channel is full. Dropping request.")
+		log.Info().Msg("Request channel is full. Dropping request.")
 	}
 }
 
 func (d *Dispatcher) Stop(ctx context.Context) {
-	fmt.Println("\nGraceful shutdown initiated")
+	log.Info().Msg("Graceful shutdown initiated")
 
 	// First, stop receiving new requests
 	close(d.inCh)
 
 	// Check the number of pending requests
 	pendingRequests := len(d.inCh)
-	fmt.Printf("Pending requests: %d\n", pendingRequests)
+	log.Info().Msgf("Pending requests: %d", pendingRequests)
 
 	// Stop all workers
 	d.workerManager.StopAllWorkers()
@@ -77,26 +78,26 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 	// Wait for completion or timeout
 	select {
 	case <-done:
-		fmt.Println("All workers stopped gracefully")
+		log.Info().Msg("All workers stopped gracefully")
 	case <-ctx.Done():
-		fmt.Println("Timeout reached, some requests may not have been processed")
+		log.Info().Msg("Timeout reached, some requests may not have been processed")
 	}
 
 	// Report remaining requests
 	remainingRequests := len(d.inCh)
-	fmt.Printf("Unprocessed requests: %d\n", remainingRequests)
+	log.Info().Msgf("Unprocessed requests: %d", remainingRequests)
 
 	// Optional: Log remaining requests to a file or another system
 	if remainingRequests > 0 {
 		d.logRemainingRequests()
 	}
 
-	fmt.Println("Shutdown complete")
+	log.Info().Msg("Shutdown complete")
 }
 
 func (d *Dispatcher) logRemainingRequests() {
 	for req := range d.inCh {
-		fmt.Printf("Unprocessed request: %v\n", req)
+		log.Info().Msgf("Unprocessed request: %v", req)
 		// You can log remaining requests to a file or another system here
 	}
 }
