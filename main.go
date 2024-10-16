@@ -13,8 +13,6 @@ import (
 )
 
 func main() {
-	// SetLogger()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
