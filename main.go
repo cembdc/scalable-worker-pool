@@ -27,7 +27,7 @@ func main() {
 
 	startWorkers(dispatcher, &wg, reqHandler, wp.DefaultMinWorkers)
 
-	go dispatcher.ScaleWorkers(ctx, wp.DefaultMinWorkers, wp.DefaultMaxWorkers, wp.DefaultLoadThreshold)
+	go dispatcher.ScaleWorkers(ctx)
 
 	sendRequests(dispatcher, requests)
 

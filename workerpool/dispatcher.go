@@ -10,7 +10,6 @@ import (
 type Dispatcher struct {
 	inCh          chan Request
 	workerManager *WorkerManager
-	scaler        *Scaler
 	reqHandler    map[int]RequestHandler
 }
 
@@ -22,13 +21,11 @@ func NewDispatcher(
 ) WorkerPoolManager {
 	inCh := make(chan Request, bufferSize)
 	stopCh := make(chan struct{}, maxWorkers)
-	workerManager := NewWorkerManager(wg, inCh, stopCh, reqHandler)
-	scaler := NewScaler(workerManager, inCh, DefaultMinWorkers, DefaultMaxWorkers, DefaultLoadThreshold)
+	workerManager := NewWorkerManager(wg, inCh, stopCh, reqHandler, DefaultMinWorkers, DefaultMaxWorkers, DefaultLoadThreshold)
 
 	return &Dispatcher{
 		inCh:          inCh,
 		workerManager: workerManager,
-		scaler:        scaler,
 		reqHandler:    reqHandler,
 	}
 }
@@ -43,8 +40,8 @@ func (d *Dispatcher) RemoveWorker(minWorkers int) {
 	}
 }
 
-func (d *Dispatcher) ScaleWorkers(ctx context.Context, minWorkers, maxWorkers, loadThreshold int) {
-	d.scaler.Start(ctx)
+func (d *Dispatcher) ScaleWorkers(ctx context.Context) {
+	d.workerManager.ScaleWorkers(ctx)
 }
 
 func (d *Dispatcher) MakeRequest(r Request) {

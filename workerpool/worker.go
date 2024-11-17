@@ -8,11 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// WorkerLauncher is an interface for launching workers.
-type WorkerLauncher interface {
-	LaunchWorker(in chan Request, stopCh chan struct{})
-}
-
 // Worker represents a worker that processes requests.
 type Worker struct {
 	Id         int
