@@ -12,7 +12,7 @@ BINARY_UNIX=$(BINARY_NAME)_unix
 all: test build
 
 build: clean
-	$(GOBUILD) -o $(BINARY_DIR)/$(BINARY_NAME) -v ./main.go
+	$(GOBUILD) -o $(BINARY_DIR)/$(BINARY_NAME) -v ./cmd/main.go
 
 test:
 	$(GOTEST) -v ./...

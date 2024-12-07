@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"runtime"
 	"scalable-worker-pool/internal/config"
 	"scalable-worker-pool/internal/plugin"
@@ -35,10 +37,14 @@ func main() {
 	// setMaxProcs()
 	log.Info().Msg("Waiting for requests to complete")
 
-	done := make(chan bool)
-	<-done
-	// // time.Sleep(5 * time.Second)
-	// gracefulShutdown(dispatcher, ctx)
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+
+	gracefulShutdown(pluginManager, ctx)
+
+	log.Info().Msg("Server stopped gracefully")
 }
 
 func setMaxProcs() {
@@ -48,8 +54,8 @@ func setMaxProcs() {
 	log.Info().Msgf("Running with %d CPUs", numCPU)
 }
 
-func gracefulShutdown(pluginManager plugin.Manager, ctx context.Context) {
-	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+func gracefulShutdown(pluginManager *plugin.Manager, ctx context.Context) {
+	shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	pluginManager.StopRouting(shutdownCtx)

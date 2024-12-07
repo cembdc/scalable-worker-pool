@@ -84,7 +84,7 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 		d.logRemainingRequests()
 	}
 
-	log.Info().Msg("Shutdown complete")
+	log.Info().Msg("Workerpool Shutdown complete")
 }
 
 func (d *Dispatcher) logRemainingRequests() {
