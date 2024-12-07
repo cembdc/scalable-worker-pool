@@ -7,9 +7,7 @@ import (
 	"scalable-worker-pool/internal/config"
 	"scalable-worker-pool/internal/plugin"
 	"scalable-worker-pool/internal/plugin/mqtt"
-	wp "scalable-worker-pool/pkg/workerpool"
 
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -35,19 +33,6 @@ func main() {
 	}
 
 	// setMaxProcs()
-
-	// bufferSize := 50000
-	// requests := 50000
-	// var wg sync.WaitGroup
-
-	// reqHandler := createRequestHandler()
-	// dispatcher := wp.NewDispatcher(bufferSize, &wg, wp.DefaultMaxWorkers, reqHandler)
-
-	// startWorkers(dispatcher, &wg, reqHandler, wp.DefaultMinWorkers)
-
-	// go dispatcher.ScaleWorkers(ctx)
-
-	// sendRequests(dispatcher, requests)
 	log.Info().Msg("Waiting for requests to complete")
 
 	done := make(chan bool)
@@ -63,40 +48,11 @@ func setMaxProcs() {
 	log.Info().Msgf("Running with %d CPUs", numCPU)
 }
 
-func createRequestHandler() map[int]wp.RequestHandler {
-	return map[int]wp.RequestHandler{
-		1: func(data interface{}) error {
+func gracefulShutdown(pluginManager plugin.Manager, ctx context.Context) {
+	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
-			return nil
-		},
-	}
-}
-
-func startWorkers(dispatcher wp.WorkerPoolManager, wg *sync.WaitGroup, reqHandler map[int]wp.RequestHandler, minWorkers int) {
-	for i := 0; i < minWorkers; i++ {
-		log.Info().Msgf("Starting worker with id %d", i)
-		w := wp.NewWorker(i, wg, reqHandler)
-		dispatcher.AddWorker(w)
-	}
-}
-
-func sendRequests(dispatcher wp.WorkerPoolManager, requestCount int) {
-	for i := 0; i < requestCount; i++ {
-		req := wp.Request{
-			Data:    fmt.Sprintf("Hello MsgId: %d", i),
-			Handler: func(result interface{}) error { return nil },
-			Type:    1,
-			Timeout: 5 * time.Second,
-		}
-		dispatcher.MakeRequest(req)
-	}
-}
-
-func gracefulShutdown(dispatcher wp.WorkerPoolManager, ctx context.Context) {
-	stopCtx, stopCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer stopCancel()
-
-	dispatcher.Stop(stopCtx)
+	pluginManager.StopRouting(shutdownCtx)
 	log.Info().Msg("Exiting main!")
 }
 
