@@ -26,17 +26,17 @@ func NewWorker(id int, wg *sync.WaitGroup, reqHandler map[int]RequestHandler) *W
 // LaunchWorker launches the worker to process incoming requests.
 // It runs in a separate goroutine, continuously listening for incoming requests on the input channel.
 // The worker gracefully stops when either the input channel is closed or it receives a stop signal.
-func (w *Worker) LaunchWorker(in chan Request, stopCh chan struct{}) {
+func (w *Worker) LaunchWorker(reqCh chan Request, stopCh chan struct{}) {
 	go func() {
 		defer w.Wg.Done()
 		for {
 			select {
-			case msg, open := <-in:
+			case msg, open := <-reqCh:
 				if !open {
 					// If the channel is closed, stop processing and return
 					// if we skip close channel check then after closing channel,
 					// worker keep reading empty values from closed channel.
-					log.Info().Msgf("Stopping worker %d", w.Id)
+					log.Info().Msg("Closed channel")
 					return
 				}
 				w.processRequest(msg)
@@ -54,6 +54,7 @@ func (w *Worker) processRequest(msg Request) {
 	log.Info().Msgf("Worker %d processing request: %v", w.Id, msg)
 	var handler RequestHandler
 	var ok bool
+	time.Sleep(2 * time.Second) // Simulate processing time
 	if handler, ok = w.ReqHandler[msg.Type]; !ok {
 		log.Info().Msgf("Handler not implemented: workerID: %d", w.Id)
 	} else {
@@ -78,10 +79,10 @@ func (w *Worker) processRequest(msg Request) {
 				}
 				log.Error().Msgf("Worker %d: Error processing request: %v", w.Id, err)
 			case <-ctx.Done():
-				log.Info().Msgf("Worker %d: Timeout processing request: %v", w.Id, msg.Data)
+				// log.Info().Msgf("Worker %d: Timeout processing request: %v", w.Id, msg.Data)
 			}
-			log.Info().Msgf("Worker %d: Retry %d for request %v", w.Id, attempt, msg.Data)
+			// log.Info().Msgf("Worker %d: Retry %d for request %v", w.Id, attempt, msg.Data)
 		}
-		log.Error().Msgf("Worker %d: Failed to process request %v after %d retries", w.Id, msg.Data, msg.MaxRetries)
+		// log.Error().Msgf("Worker %d: Failed to process request %v after %d retries", w.Id, msg.Data, msg.MaxRetries)
 	}
 }

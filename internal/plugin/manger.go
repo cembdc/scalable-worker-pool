@@ -3,9 +3,8 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"scalable-worker-pool/pkg/config"
+	"scalable-worker-pool/internal/config"
 	"scalable-worker-pool/pkg/workerpool"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -101,25 +100,14 @@ func (m *Manager) StopPlugins(ctx context.Context) error {
 }
 
 func (m *Manager) StartRouting(ctx context.Context) error {
-	// Worker Pool setup
-	var wg sync.WaitGroup
-	bufferSize := 50000
 	reqHandler := map[int]workerpool.RequestHandler{
 		1: m.handleMessage,
 	}
 
-	m.wp = workerpool.NewDispatcher(bufferSize, &wg, workerpool.DefaultMaxWorkers, reqHandler)
+	m.wp = workerpool.NewDispatcher(reqHandler)
 
-	// Start workers
-	for i := 0; i < workerpool.DefaultMinWorkers; i++ {
-		worker := workerpool.NewWorker(i, &wg, reqHandler)
-		m.wp.AddWorker(worker)
-	}
-
-	// Start scaling
 	go m.wp.ScaleWorkers(ctx)
 
-	// Start reading from each source
 	for _, source := range m.sources {
 		go m.readFromSource(ctx, source)
 	}

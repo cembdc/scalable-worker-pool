@@ -31,21 +31,21 @@ type WorkerManager struct {
 }
 
 func NewWorkerManager(
-	wg *sync.WaitGroup,
-	inCh chan Request,
-	stopCh chan struct{},
+	reqCh chan Request,
 	reqHandler map[int]RequestHandler,
-	minWorker, maxWorker, loadThreshold int,
 ) *WorkerManager {
+	stopCh := make(chan struct{}, DefaultMaxWorkers)
+	var wg sync.WaitGroup
+
 	return &WorkerManager{
 		workers:       make(map[int]*Worker),
-		wg:            wg,
-		inCh:          inCh,
+		wg:            &wg,
+		inCh:          reqCh,
 		stopCh:        stopCh,
 		reqHandler:    reqHandler,
-		minWorkers:    minWorker,
-		maxWorkers:    maxWorker,
-		loadThreshold: loadThreshold,
+		minWorkers:    DefaultMinWorkers,
+		maxWorkers:    DefaultMaxWorkers,
+		loadThreshold: DefaultLoadThreshold,
 	}
 }
 
@@ -87,6 +87,9 @@ func (wm *WorkerManager) WaitForAllWorkers() {
 }
 
 func (wm *WorkerManager) ScaleWorkers(ctx context.Context) {
+
+	wm.runDefaultWorkers()
+
 	ticker := time.NewTicker(time.Microsecond)
 	defer ticker.Stop()
 
@@ -101,20 +104,25 @@ func (wm *WorkerManager) ScaleWorkers(ctx context.Context) {
 	}
 }
 
+func (wm *WorkerManager) runDefaultWorkers() {
+	for i := 0; i < DefaultMinWorkers; i++ {
+		worker := NewWorker(i, wm.wg, wm.reqHandler)
+		wm.AddWorker(worker)
+	}
+}
+
 func (wm *WorkerManager) scale() {
 	load := len(wm.inCh)
 	currentWorkers := wm.WorkerCount()
 
 	if load > wm.loadThreshold && currentWorkers < wm.maxWorkers {
 		log.Info().Msg("Scaling Up")
-		newWorker := &Worker{
-			Wg:         wm.wg,
-			Id:         currentWorkers,
-			ReqHandler: wm.reqHandler,
-		}
+		newWorker := NewWorker(currentWorkers, wm.wg, wm.reqHandler)
 		wm.AddWorker(newWorker)
+		log.Info().Msgf("Current worker %d", wm.WorkerCount())
 	} else if float64(load) < float64(LoadThresholdScaleDownRatio)*float64(wm.loadThreshold) && currentWorkers > wm.minWorkers {
 		log.Info().Msg("Scaling Down")
 		wm.RemoveWorker()
+		log.Info().Msgf("Current worker %d", wm.WorkerCount())
 	}
 }

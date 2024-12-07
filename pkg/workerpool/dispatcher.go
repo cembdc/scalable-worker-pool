@@ -2,29 +2,24 @@ package workerpool
 
 import (
 	"context"
-	"sync"
 
 	"github.com/rs/zerolog/log"
 )
 
 type Dispatcher struct {
-	inCh          chan Request
+	reqCh         chan Request
 	workerManager *WorkerManager
 	reqHandler    map[int]RequestHandler
 }
 
 func NewDispatcher(
-	bufferSize int,
-	wg *sync.WaitGroup,
-	maxWorkers int,
 	reqHandler map[int]RequestHandler,
 ) WorkerPoolManager {
-	inCh := make(chan Request, bufferSize)
-	stopCh := make(chan struct{}, maxWorkers)
-	workerManager := NewWorkerManager(wg, inCh, stopCh, reqHandler, DefaultMinWorkers, DefaultMaxWorkers, DefaultLoadThreshold)
+	reqCh := make(chan Request, DefaultBufferSize)
+	workerManager := NewWorkerManager(reqCh, reqHandler)
 
 	return &Dispatcher{
-		inCh:          inCh,
+		reqCh:         reqCh,
 		workerManager: workerManager,
 		reqHandler:    reqHandler,
 	}
@@ -46,7 +41,7 @@ func (d *Dispatcher) ScaleWorkers(ctx context.Context) {
 
 func (d *Dispatcher) MakeRequest(r Request) {
 	select {
-	case d.inCh <- r:
+	case d.reqCh <- r:
 	default:
 		log.Info().Msg("Request channel is full. Dropping request.")
 	}
@@ -56,10 +51,10 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 	log.Info().Msg("Graceful shutdown initiated")
 
 	// First, stop receiving new requests
-	close(d.inCh)
+	close(d.reqCh)
 
 	// Check the number of pending requests
-	pendingRequests := len(d.inCh)
+	pendingRequests := len(d.reqCh)
 	log.Info().Msgf("Pending requests: %d", pendingRequests)
 
 	// Stop all workers
@@ -81,7 +76,7 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 	}
 
 	// Report remaining requests
-	remainingRequests := len(d.inCh)
+	remainingRequests := len(d.reqCh)
 	log.Info().Msgf("Unprocessed requests: %d", remainingRequests)
 
 	// Optional: Log remaining requests to a file or another system
@@ -93,7 +88,7 @@ func (d *Dispatcher) Stop(ctx context.Context) {
 }
 
 func (d *Dispatcher) logRemainingRequests() {
-	for req := range d.inCh {
+	for req := range d.reqCh {
 		log.Info().Msgf("Unprocessed request: %v", req)
 		// You can log remaining requests to a file or another system here
 	}

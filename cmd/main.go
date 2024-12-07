@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"scalable-worker-pool/internal/config"
 	"scalable-worker-pool/internal/plugin"
 	"scalable-worker-pool/internal/plugin/mqtt"
-	"scalable-worker-pool/pkg/config"
 	wp "scalable-worker-pool/pkg/workerpool"
 
 	"sync"
