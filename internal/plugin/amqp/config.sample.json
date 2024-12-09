@@ -1,0 +1,33 @@
+{
+    "sources": [
+        {
+            "type": "amqp",
+            "config": {
+                "url": "amqp://guest:guest@localhost:5672/",
+                "queue": "input_queue",
+                "properties": {
+                    "prefetch_count": "1",
+                    "durable": "true",
+                    "auto_delete": "false",
+                    "exclusive": "false"
+                }
+            }
+        }
+    ],
+    "targets": [
+        {
+            "type": "amqp",
+            "config": {
+                "url": "amqp://guest:guest@localhost:5672/",
+                "queue": "output_queue",
+                "exchange": "output_exchange",
+                "exchange_type": "direct",
+                "routing_key": "output.data",
+                "properties": {
+                    "persistent": "true",
+                    "content_type": "application/json"
+                }
+            }
+        }
+    ]
+}
